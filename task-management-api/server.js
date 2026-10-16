@@ -6,13 +6,19 @@ const db = require("./database");
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "https://task5-frontend-beryl.vercel.app"
-  ]
-}));
+// Allow local development and deployed Task 5 / Task 6 frontends
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "https://task5-frontend-beryl.vercel.app",
+  "https://task6-fullstack-management.vercel.app"
+];
+
+app.use(
+  cors({
+    origin: allowedOrigins
+  })
+);
 
 app.use(express.json());
 
@@ -42,9 +48,10 @@ app.get("/api/tasks", (req, res) => {
   const priority = req.query.priority;
 
   const sortBy = allowedSortFields[req.query.sort_by] || "t.id";
-  const order = String(req.query.order || "").toLowerCase() === "asc"
-    ? "ASC"
-    : "DESC";
+  const order =
+    String(req.query.order || "").toLowerCase() === "asc"
+      ? "ASC"
+      : "DESC";
 
   const conditions = [];
   const params = [];
@@ -61,9 +68,11 @@ app.get("/api/tasks", (req, res) => {
 
   if (categoryId !== undefined) {
     const id = Number(categoryId);
+
     if (!Number.isInteger(id) || id < 1) {
       return res.status(400).json({ error: "Invalid category_id." });
     }
+
     conditions.push("t.category_id = ?");
     params.push(id);
   }
@@ -74,6 +83,7 @@ app.get("/api/tasks", (req, res) => {
         error: "Priority must be low, medium, or high."
       });
     }
+
     conditions.push("t.priority = ?");
     params.push(priority);
   }
@@ -118,7 +128,7 @@ app.get("/api/tasks", (req, res) => {
             limit,
             total: countRow.total,
             totalPages: Math.ceil(countRow.total / limit),
-            tasks: tasks.map(task => ({
+            tasks: tasks.map((task) => ({
               ...task,
               completed: Boolean(task.completed)
             }))
@@ -137,13 +147,18 @@ app.get("/api/categories", (req, res) => {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
+
       res.json({ categories });
     }
   );
 });
 
 app.post("/api/tasks", (req, res) => {
-  const { title, category_id = 1, priority = "medium" } = req.body;
+  const {
+    title,
+    category_id = 1,
+    priority = "medium"
+  } = req.body;
 
   if (typeof title !== "string" || !title.trim()) {
     return res.status(400).json({ error: "Task title is required." });
@@ -190,15 +205,24 @@ app.post("/api/tasks", (req, res) => {
           }
 
           db.get(
-            `SELECT t.id, t.title, t.completed, t.category_id,
-                    c.name AS category, t.priority, t.created_at, t.updated_at
+            `SELECT
+               t.id,
+               t.title,
+               t.completed,
+               t.category_id,
+               c.name AS category,
+               t.priority,
+               t.created_at,
+               t.updated_at
              FROM tasks t
              LEFT JOIN categories c ON c.id = t.category_id
              WHERE t.id = ?`,
             [this.lastID],
             (selectErr, task) => {
               if (selectErr) {
-                return res.status(500).json({ error: selectErr.message });
+                return res.status(500).json({
+                  error: selectErr.message
+                });
               }
 
               res.status(201).json({
@@ -227,12 +251,16 @@ app.put("/api/tasks/:id", (req, res) => {
   const params = [];
 
   if (title !== undefined) {
-    if (typeof title !== "string" || !title.trim() ||
-        title.trim().length > 200) {
+    if (
+      typeof title !== "string" ||
+      !title.trim() ||
+      title.trim().length > 200
+    ) {
       return res.status(400).json({
         error: "Title must be 1–200 characters."
       });
     }
+
     fields.push("title = ?");
     params.push(title.trim());
   }
@@ -243,15 +271,18 @@ app.put("/api/tasks/:id", (req, res) => {
         error: "Completed must be true or false."
       });
     }
+
     fields.push("completed = ?");
     params.push(completed ? 1 : 0);
   }
 
   if (category_id !== undefined) {
     const categoryId = Number(category_id);
+
     if (!Number.isInteger(categoryId) || categoryId < 1) {
       return res.status(400).json({ error: "Invalid category_id." });
     }
+
     fields.push("category_id = ?");
     params.push(categoryId);
   }
@@ -262,6 +293,7 @@ app.put("/api/tasks/:id", (req, res) => {
         error: "Priority must be low, medium, or high."
       });
     }
+
     fields.push("priority = ?");
     params.push(priority);
   }
@@ -286,16 +318,26 @@ app.put("/api/tasks/:id", (req, res) => {
       }
 
       db.get(
-        `SELECT t.id, t.title, t.completed, t.category_id,
-                c.name AS category, t.priority, t.created_at, t.updated_at
+        `SELECT
+           t.id,
+           t.title,
+           t.completed,
+           t.category_id,
+           c.name AS category,
+           t.priority,
+           t.created_at,
+           t.updated_at
          FROM tasks t
          LEFT JOIN categories c ON c.id = t.category_id
          WHERE t.id = ?`,
         [id],
         (selectErr, task) => {
           if (selectErr) {
-            return res.status(500).json({ error: selectErr.message });
+            return res.status(500).json({
+              error: selectErr.message
+            });
           }
+
           res.json({
             task: {
               ...task,
@@ -315,17 +357,21 @@ app.delete("/api/tasks/:id", (req, res) => {
     return res.status(400).json({ error: "Invalid task ID." });
   }
 
-  db.run("DELETE FROM tasks WHERE id = ?", [id], function (err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
+  db.run(
+    "DELETE FROM tasks WHERE id = ?",
+    [id],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
 
-    if (this.changes === 0) {
-      return res.status(404).json({ error: "Task not found." });
-    }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: "Task not found." });
+      }
 
-    res.json({ message: "Task deleted successfully." });
-  });
+      res.json({ message: "Task deleted successfully." });
+    }
+  );
 });
 
 app.listen(PORT, "0.0.0.0", () => {
